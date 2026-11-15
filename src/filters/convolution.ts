@@ -52,9 +52,18 @@ export function directConvolution(
   kernel: number[][],
   options: ConvolutionOptions = {},
 ): Image {
-  const { borderType = 'reflect101', borderValue = 0 } = options;
+  const {
+    borderType = 'reflect101',
+    borderValue = 0,
+    normalize = false,
+  } = options;
 
-  const convolutedData = rawDirectConvolution(image, kernel, {
+  let normalizedKernel = kernel;
+  if (normalize) {
+    normalizedKernel = normalizeKernel(kernel);
+  }
+
+  const convolutedData = rawDirectConvolution(image, normalizedKernel, {
     borderType,
     borderValue,
   });
@@ -258,6 +267,24 @@ export function computeConvolutionValue(
   } else {
     return round(clamp(val));
   }
+}
+
+/**
+ * Normalize a 2D kernel by dividing each value by the sum of all the kernel values, so that the total weight is 1.
+ * @param kernel - The kernel to normalize.
+ * @returns The normalized kernel.
+ */
+export function normalizeKernel(kernel: number[][]): number[][] {
+  let sum = 0;
+  for (const row of kernel) {
+    for (const value of row) {
+      sum += value;
+    }
+  }
+  if (sum < 0) {
+    throw new RangeError('this kernel cannot be normalized');
+  }
+  return kernel.map((row) => row.map((value) => value / sum));
 }
 
 /**

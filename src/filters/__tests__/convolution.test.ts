@@ -60,6 +60,166 @@ describe('convolution functions', () => {
 
     expect(img1).toMatchImage(img2);
   });
+
+  it('normalized direct convolution should divide the kernel by its total weight', () => {
+    const image = testUtils.createGreyImage([
+      [1, 2, 3],
+      [4, 5, 6],
+      [7, 8, 9],
+    ]);
+    const kernel = [
+      [1, 1, 1],
+      [1, 1, 1],
+      [1, 1, 1],
+    ];
+
+    const convoluted = image.directConvolution(kernel, {
+      borderType: 'constant',
+      borderValue: 0,
+      normalize: true,
+    });
+
+    expect(convoluted).toMatchImageData([
+      [1, 2, 2],
+      [3, 5, 4],
+      [3, 4, 3],
+    ]);
+    // top-left, middle-right, bottom-right and center
+    expect(convoluted.getValue(0, 0, 0)).toBe(1);
+    expect(convoluted.getValue(2, 1, 0)).toBe(4);
+    expect(convoluted.getValue(2, 2, 0)).toBe(3);
+    expect(convoluted.getValue(1, 1, 0)).toBe(5);
+  });
+
+  it('normalized direct and separable convolutions should give the same values', () => {
+    const image = testUtils.createGreyImage([
+      [1, 2, 3],
+      [4, 5, 6],
+      [7, 8, 9],
+    ]);
+
+    const onesKernel = [
+      [1, 1, 1],
+      [1, 1, 1],
+      [1, 1, 1],
+    ];
+    const gaussianKernel = [
+      [1, 2, 1],
+      [2, 4, 2],
+      [1, 2, 1],
+    ];
+
+    const directOnes = image.directConvolution(onesKernel, {
+      borderType: 'constant',
+      borderValue: 0,
+      normalize: true,
+    });
+    const separableOnes = image.separableConvolution([1, 1, 1], [1, 1, 1], {
+      borderType: 'constant',
+      borderValue: 0,
+      normalize: true,
+    });
+
+    expect(directOnes).toMatchImageData([
+      [1, 2, 2],
+      [3, 5, 4],
+      [3, 4, 3],
+    ]);
+    expect(separableOnes).toMatchImage(directOnes);
+
+    const directGaussian = image.directConvolution(gaussianKernel, {
+      borderType: 'constant',
+      borderValue: 0,
+      normalize: true,
+    });
+    const separableGaussian = image.separableConvolution([1, 2, 1], [1, 2, 1], {
+      borderType: 'constant',
+      borderValue: 0,
+      normalize: true,
+    });
+
+    expect(directGaussian).toMatchImageData([
+      [1, 2, 2],
+      [3, 5, 4],
+      [4, 5, 4],
+    ]);
+    expect(separableGaussian).toMatchImage(directGaussian);
+    // top-left, middle-right, bottom-right and center
+    expect(directGaussian.getValue(0, 0, 0)).toBe(1);
+    expect(directGaussian.getValue(2, 1, 0)).toBe(4);
+    expect(directGaussian.getValue(2, 2, 0)).toBe(4);
+    expect(directGaussian.getValue(1, 1, 0)).toBe(5);
+  });
+
+  it('unnormalized convolutions should keep the raw weighted sums', () => {
+    const image = testUtils.createGreyImage([
+      [1, 2, 3],
+      [4, 5, 6],
+      [7, 8, 9],
+    ]);
+
+    const onesKernel = [
+      [1, 1, 1],
+      [1, 1, 1],
+      [1, 1, 1],
+    ];
+    const gaussianKernel = [
+      [1, 2, 1],
+      [2, 4, 2],
+      [1, 2, 1],
+    ];
+
+    const directOnes = image.directConvolution(onesKernel, {
+      borderType: 'constant',
+      borderValue: 0,
+    });
+    const separableOnes = image.separableConvolution([1, 1, 1], [1, 1, 1], {
+      borderType: 'constant',
+      borderValue: 0,
+    });
+
+    expect(directOnes).toMatchImageData([
+      [12, 21, 16],
+      [27, 45, 33],
+      [24, 39, 28],
+    ]);
+    expect(separableOnes).toMatchImage(directOnes);
+    expect(directOnes.getValue(2, 2, 0)).toBe(28);
+
+    const directGaussian = image.directConvolution(gaussianKernel, {
+      borderType: 'constant',
+      borderValue: 0,
+    });
+    const separableGaussian = image.separableConvolution([1, 2, 1], [1, 2, 1], {
+      borderType: 'constant',
+      borderValue: 0,
+    });
+
+    expect(directGaussian).toMatchImageData([
+      [21, 36, 33],
+      [52, 80, 68],
+      [57, 84, 69],
+    ]);
+    expect(separableGaussian).toMatchImage(directGaussian);
+    expect(directGaussian.getValue(2, 2, 0)).toBe(69);
+  });
+
+  it('normalizing a kernel with a negative total weight should throw', () => {
+    const image = testUtils.createGreyImage([
+      [1, 2, 3],
+      [4, 5, 6],
+      [7, 8, 9],
+    ]);
+    const kernel = [
+      [-1, -1, -1],
+      [-1, -1, -1],
+      [-1, -1, -1],
+    ];
+
+    expect(() => image.directConvolution(kernel, { normalize: true })).toThrow(
+      'this kernel cannot be normalized',
+    );
+  });
 });
 
 describe('computeConvolutionValue', () => {
